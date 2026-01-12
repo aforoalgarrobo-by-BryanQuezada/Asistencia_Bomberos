@@ -28,15 +28,34 @@
   .led.ok{background:#36d399}
   .led.bad{background:#ef4444}
 
-  /* ===== Presentes ===== */
-  .presentes-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-top:16px;}
-  .table{width:100%; border-collapse:collapse; margin-top:10px; overflow:hidden; border-radius:12px; border:1px solid #2a356a;}
-  .table th,.table td{padding:10px 10px; font-size:13px; border-bottom:1px solid #1c2554;}
-  .table th{color:var(--muted); text-align:left; background:#0f1633;}
-  .table tr:last-child td{border-bottom:none;}
-  .pill{display:inline-flex; gap:8px; align-items:center; padding:4px 10px; border-radius:999px; background:#0f1633; border:1px solid #2a356a; font-size:12px; color:var(--ink);}
-  .dot{width:8px;height:8px;border-radius:999px;background:var(--accent);display:inline-block}
-  .empty{color:var(--muted); font-size:13px; margin-top:8px;}
+  /* ===== Presentes dentro de cada card ===== */
+  .presentes-wrap{ margin-top:10px; }
+  .presentes-title{ color:var(--muted); font-size:13px; margin-top:10px; }
+  .presentes-list{
+    margin-top:6px;
+    border:1px solid #2a356a;
+    background:#0f1633;
+    border-radius:12px;
+    overflow:hidden;
+    max-height:220px;
+    overflow:auto;
+  }
+  .pres-row{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px 12px;
+    border-bottom:1px solid rgba(42,53,106,.6);
+    font-size:13px;
+  }
+  .pres-row:last-child{ border-bottom:none; }
+  .pres-name{ font-weight:800; }
+  .pres-cargo{ color:var(--muted); font-size:12px; white-space:nowrap; }
+  .pres-empty{
+    padding:10px 12px;
+    color:var(--muted);
+    font-size:13px;
+  }
 </style>
 </head>
 <body>
@@ -57,18 +76,10 @@
       <div id="tot" class="value" style="color:var(--accent)">0</div>
       <div class="footer" id="updated">Actualizado: —</div>
     </div>
-
-    <!-- ===== Panel nuevo: Presentes por cuartel ===== -->
-    <div class="card" style="margin-top:16px">
-      <div class="label">Presentes por cuartel</div>
-      <div class="name">Listado sincronizado con el aforo (solo quienes cuentan en aforo).</div>
-      <div class="footer" id="presentes-updated">Actualizado: —</div>
-      <div class="presentes-grid" id="presentes-grid"></div>
-    </div>
   </div>
 
 <script>
-  const API_BASE = "https://script.google.com/macros/s/AKfycbxwXPZt7vKDBnpN1yhb5DYjzaeKNvEhrneTgsZQRBN0Mlv7z6CX_gUN0cHaJkUx2VMI/exec";   // ← tu /exec
+  const API_BASE = "https://script.google.com/macros/s/AKfycbxwXPZt7vKDBnpN1yhb5DYjzaeKNvEhrneTgsZQRBN0Mlv7z6CX_gUN0cHaJkUx2VMI/exec";
   const LOGOS = {
     "Cuartel 1": "img/c1.png",
     "Cuartel 2": "img/c2.png",
@@ -84,8 +95,6 @@
     btn: document.getElementById('refreshBtn'),
     updated: document.getElementById('updated'),
     tot: document.getElementById('tot'),
-    presentesGrid: document.getElementById('presentes-grid'),
-    presentesUpdated: document.getElementById('presentes-updated'),
   };
 
   function jsonp(url){
@@ -105,9 +114,18 @@
     (list||[]).forEach(txt=>{
       const chip=document.createElement('span');
       chip.className='chip';
-      chip.innerHTML='<span class="dot"></span>'+txt;
+      chip.innerHTML='<span class="dot"></span>'+escapeHtml(txt);
       container.appendChild(chip);
     });
+  }
+
+  function escapeHtml(str){
+    return String(str||"")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
   }
 
   function buildCards(){
@@ -116,6 +134,7 @@
       const card=document.createElement('div');
       card.className='card';
       const logo=LOGOS[cu]||"img/logocuerpo.png";
+
       card.innerHTML=`
         <div class="head">
           <img class="logo-cu" src="${logo}" alt="${cu}">
@@ -125,10 +144,21 @@
             <div class="name">Voluntarios dentro</div>
           </div>
         </div>
+
         <div class="name">Cuartelero: <b id="view-cu-${cu}">—</b></div>
         <div class="name" style="margin-top:4px">Conductor: <b id="view-co-${cu}">—</b></div>
+
         <div class="label" style="margin-top:8px">Unidades activas</div>
         <div id="chips-${cu}" class="chips"></div>
+
+        <!-- 👇 Aquí se agregan los presentes -->
+        <div class="presentes-wrap">
+          <div class="presentes-title">Presentes (Nombre / Cargo)</div>
+          <div id="pres-${cu}" class="presentes-list">
+            <div class="pres-empty">Cargando…</div>
+          </div>
+        </div>
+
         <div class="footer" id="saved-${cu}">—</div>
       `;
       grid.appendChild(card);
@@ -170,86 +200,48 @@
       if (vcu) vcu.textContent = e.cuartelero || "—";
       if (vco) vco.textContent = e.conductor  || "—";
       renderChips(document.getElementById(`chips-${cu}`), e.unidades);
+
       const saved = document.getElementById(`saved-${cu}`);
       if (saved) saved.textContent = e.updated ? ("Última actualización: " + e.updated) : "—";
     });
   }
 
-  function renderPresentesTable(cuartel, list){
-    const card = document.createElement('div');
-    card.className = 'card';
+  function renderPresentes(cu, list){
+    const box = document.getElementById(`pres-${cu}`);
+    if (!box) return;
 
-    const logo = LOGOS[cuartel] || "img/logocuerpo.png";
-    const count = (list||[]).length;
+    box.innerHTML = "";
 
-    card.innerHTML = `
-      <div class="head">
-        <img class="logo-cu" src="${logo}" alt="${cuartel}">
-        <div>
-          <div class="label">${cuartel}</div>
-          <div class="pill"><span class="dot"></span> ${count} presentes</div>
-        </div>
-      </div>
-    `;
-
-    if (!list || list.length === 0){
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.textContent = "— Sin presentes —";
-      card.appendChild(empty);
-      return card;
+    const arr = Array.isArray(list) ? list : [];
+    if (!arr.length){
+      box.innerHTML = `<div class="pres-empty">— Sin presentes —</div>`;
+      return;
     }
 
-    const table = document.createElement('table');
-    table.className = 'table';
-    table.innerHTML = `
-      <thead>
-        <tr>
-          <th style="width:55%">Nombre</th>
-          <th style="width:45%">Cargo</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    `;
-
-    const tbody = table.querySelector('tbody');
-    list.forEach(p=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${escapeHtml(p.nombre || "")}</td>
-        <td>${escapeHtml(p.cargo || "")}</td>
+    arr.forEach(p=>{
+      const row = document.createElement('div');
+      row.className = "pres-row";
+      row.innerHTML = `
+        <div class="pres-name">${escapeHtml(p.nombre || "")}</div>
+        <div class="pres-cargo">${escapeHtml(p.cargo || "")}</div>
       `;
-      tbody.appendChild(tr);
+      box.appendChild(row);
     });
-
-    card.appendChild(table);
-    return card;
-  }
-
-  function escapeHtml(str){
-    return String(str || "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
   }
 
   async function loadPresentes(){
     try{
       const data = await jsonp(API_BASE + "?op=presentes");
       const byCu = (data && data.cuarteles) ? data.cuarteles : {};
-      el.presentesUpdated.textContent = "Actualizado: " + (data.updated || new Date().toLocaleString("es-CL"));
-
-      el.presentesGrid.innerHTML = "";
       CUARTELES.forEach(cu=>{
-        const list = byCu[cu] || [];
-        el.presentesGrid.appendChild(renderPresentesTable(cu, list));
+        renderPresentes(cu, byCu[cu] || []);
       });
-    } catch (e){
+    }catch(e){
       console.error(e);
-      el.presentesUpdated.textContent = "Actualizado: — (error)";
-      el.presentesGrid.innerHTML = `<div class="empty">❌ Error cargando presentes</div>`;
+      CUARTELES.forEach(cu=>{
+        const box = document.getElementById(`pres-${cu}`);
+        if (box) box.innerHTML = `<div class="pres-empty">❌ Error cargando presentes</div>`;
+      });
     }
   }
 
@@ -262,6 +254,7 @@
     await loadAforo();
     await loadEstado();
     await loadPresentes();
+
     setInterval(loadAforo, 5000);
     setInterval(loadEstado, 10000);
     setInterval(loadPresentes, 7000);
