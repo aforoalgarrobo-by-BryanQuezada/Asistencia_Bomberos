@@ -54,7 +54,7 @@ small{color:#9aa3c7}
 
 <div class="wrap">
   <h1>Lector QR – Cuartel 2</h1>
-  <p class="sub">Escanea un QR (ID). Se reproduce bienvenida/despedida y se registra Entrada/Salida (modo aforo, sin op=next).</p>
+  <p class="sub">Escanea un QR (ID). Suena un beep al leer, reproduce frase personalizada si existe (si no, usa “Bienvenido/Hasta pronto”), y registra Entrada/Salida (modo aforo, sin op=next).</p>
 
   <div class="row">
     <span>Motivo:</span>
@@ -116,10 +116,30 @@ function jsonp(url){
 /* ==== Voz ==== */
 function speak(text){
   try{
-    const u=new SpeechSynthesisUtterance(text);
-    u.lang="es-CL";
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "es-CL";
     speechSynthesis.cancel();
     speechSynthesis.speak(u);
+  }catch{}
+}
+
+/* ==== Beep (WebAudio) ==== */
+let audioCtx = null;
+function beep(ok=true){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "sine";
+    o.frequency.value = ok ? 880 : 220;       // OK = agudo / FAIL = grave
+    g.gain.value = 0.06;
+
+    o.connect(g);
+    g.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+    o.start(now);
+    o.stop(now + (ok ? 0.08 : 0.15));
   }catch{}
 }
 
@@ -146,11 +166,28 @@ function extractIdFromQr(text){
   return String(text||"").trim().toUpperCase();
 }
 
+/* ==== Construir frase: personalizada si existe; si no, por defecto ==== */
+function buildFrase_(accion, b){
+  const cargo  = (b?.cargo  || "").toString().trim();
+  const nombre = (b?.nombre || "").toString().trim();
+
+  // 1) Preferir personalizada (si existe)
+  const bienv = (b?.bienvenida || "").toString().trim();
+  const desped = (b?.despedida || "").toString().trim();
+
+  if (accion === "Entrada" && bienv) return bienv;
+  if (accion === "Salida"  && desped) return desped;
+
+  // 2) Default solicitado
+  if (accion === "Entrada") return `Bienvenido ${cargo} ${nombre}`.trim();
+  return `Hasta pronto ${cargo} ${nombre}`.trim();
+}
+
 /* ==== Flujo principal (sin op=next) ==== */
 async function registrarPorId(idPlano, motivoSel){
   const id = (idPlano||"").trim().toUpperCase();
   const motivo = motivoSel || "Guardia";
-  if (!id){ logEl.textContent="ID vacío"; return; }
+  if (!id){ logEl.textContent="ID vacío"; beep(false); return; }
 
   try{
     logEl.textContent = "Buscando bombero…";
@@ -161,6 +198,8 @@ async function registrarPorId(idPlano, motivoSel){
     const b = bom[id];
     if (!b){
       logEl.innerHTML = `<span class="bad">❌ ID no encontrado en hoja Bomberos (${id})</span>`;
+      fraseEl.textContent = "—";
+      beep(false);
       return;
     }
 
@@ -168,27 +207,19 @@ async function registrarPorId(idPlano, motivoSel){
     const wasInside = getLocalInside(id);
     const accion = wasInside ? "Salida" : "Entrada";
 
-    // 3) Elegir frase (personalizada si existe)
-    let frase = "";
-    if (accion === "Entrada") frase = (b.bienvenida || "").toString().trim();
-    if (accion === "Salida")  frase = (b.despedida  || "").toString().trim();
-
-    if (!frase){
-      frase = (accion === "Entrada")
-        ? `Bienvenido ${b.nombre || ""}`.trim()
-        : `Buen descanso ${b.nombre || ""}`.trim();
-    }
-
+    // 3) Frase
+    const frase = buildFrase_(accion, b);
     fraseEl.textContent = frase;
 
-    // 4) Enviar registro (como aforo: fetch y leer texto)
+    // 4) Registrar
     logEl.textContent = "Registrando " + accion + "…";
     const url = `${API_BASE}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(b.nombre||"")}&cargo=${encodeURIComponent(b.cargo||"")}&cuartel=${encodeURIComponent(CUARTEL_NAME)}&accion=${encodeURIComponent(accion)}&motivo=${encodeURIComponent(motivo)}`;
     const res = await fetch(url, { cache: "no-store" });
     const txt = await res.text();
 
     if (txt.includes("OK")){
-      // hablar SOLO si fue OK
+      // sonido + voz SOLO si fue OK
+      beep(true);
       speak(frase);
 
       // alternar estado local
@@ -196,10 +227,12 @@ async function registrarPorId(idPlano, motivoSel){
 
       logEl.innerHTML = `<span class="ok">✅ OK: ${accion} para ${b.nombre || id}</span>`;
     } else {
+      beep(false);
       logEl.innerHTML = `<span class="bad">⚠️ Error: ${txt}</span>`;
     }
   }catch(e){
     console.error(e);
+    beep(false);
     logEl.innerHTML = '<span class="bad">❌ Error de conexión</span>';
   }
 }
@@ -248,9 +281,17 @@ async function switchCamera(){
 }
 
 function onScanSuccess(decodedText){
+  // beep inmediato para confirmar lectura (aunque después falle el registro)
+  beep(true);
+
   const id = extractIdFromQr(decodedText);
-  if(!id){ logEl.innerHTML='<span class="bad">QR sin ID</span>'; return; }
+  if(!id){
+    logEl.innerHTML='<span class="bad">QR sin ID</span>';
+    beep(false);
+    return;
+  }
   if(!canAccept(id)) return;
+
   registrarPorId(id, currentMotivo);
 }
 function onScanError(){ /* ignorar */ }
