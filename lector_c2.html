@@ -17,10 +17,12 @@ button{background:#36d399;color:#0b1020;border:0;border-radius:10px;padding:10px
 .log{background:#0f1633;border:1px solid #2a356a;border-radius:10px;padding:10px;min-height:56px}
 .ok{color:#36d399}.bad{color:#ef4444}
 .frase{margin-top:6px;color:#cfe7ff}
+small{color:#9aa3c7}
 </style>
 </head>
 <body>
-  <!-- ==== BLOQUEO POR CLAVE (frontend) ==== -->
+
+<!-- ==== BLOQUEO POR CLAVE (frontend) ==== -->
 <div id="lockScreen" style="
   position:fixed; inset:0; z-index:9999;
   display:flex; align-items:center; justify-content:center;
@@ -52,7 +54,7 @@ button{background:#36d399;color:#0b1020;border:0;border-radius:10px;padding:10px
 
 <div class="wrap">
   <h1>Lector QR – Cuartel 2</h1>
-  <p class="sub">Escanea un QR. Se pronuncia la frase personalizada y se registra Entrada/Salida en este cuartel.</p>
+  <p class="sub">Escanea un QR (ID). Se reproduce bienvenida/despedida y se registra Entrada/Salida (modo aforo, sin op=next).</p>
 
   <div class="row">
     <span>Motivo:</span>
@@ -73,18 +75,22 @@ button{background:#36d399;color:#0b1020;border:0;border-radius:10px;padding:10px
 
   <div class="log" id="log">Listo.</div>
   <div class="frase" id="frase">—</div>
+  <div style="margin-top:8px">
+    <small>Nota: Entrada/Salida se decide con memoria local del equipo (igual que tu página de aforo).</small>
+  </div>
 </div>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
 /* ===== Configura esto ===== */
 const CUARTEL_NAME = "Cuartel 2";
-const API_BASE = "https://script.google.com/macros/s/AKfycbyVI7DnS7YHSxYyPQ42dmnKQK9py90iCGnT0HMILFx-Q-_OzuTVXLrVY9CHKP-Jk0Gz/exec";  // ← REEMPLAZA por tu /exec
+const API_BASE = "https://script.google.com/macros/s/AKfycbyVI7DnS7YHSxYyPQ42dmnKQK9py90iCGnT0HMILFx-Q-_OzuTVXLrVY9CHKP-Jk0Gz/exec";
 const SCAN_COOLDOWN_MS = 5000;
 /* ========================== */
 
 const logEl = document.getElementById('log');
 const fraseEl = document.getElementById('frase');
+
 let currentMotivo = "Guardia";
 document.querySelectorAll('.pill').forEach(p=>{
   p.addEventListener('click', ()=>{
@@ -94,20 +100,20 @@ document.querySelectorAll('.pill').forEach(p=>{
   });
 });
 
-// JSONP helper
+/* ==== JSONP (igual estilo aforo) ==== */
 function jsonp(url){
-  return new Promise((resolve,reject)=>{
-    const cb="cb_"+Math.random().toString(36).slice(2);
-    window[cb]=d=>{ resolve(d); try{ delete window[cb] }catch{} };
-    const s=document.createElement('script');
-    s.src=url+(url.includes('?')?'&':'?')+"callback="+cb+"&_="+Date.now();
-    s.onerror=()=>reject(new Error("JSONP error"));
+  return new Promise((resolve, reject)=>{
+    const cb = "cb_" + Math.random().toString(36).slice(2);
+    window[cb] = (data)=>{ resolve(data); try{ delete window[cb]; }catch{} };
+    const s = document.createElement('script');
+    s.src = url + (url.includes('?')?'&':'?') + 'callback=' + cb + '&_=' + Date.now();
+    s.onerror = ()=> reject(new Error('JSONP error'));
     document.body.appendChild(s);
     setTimeout(()=>{ try{s.remove()}catch{} }, 12000);
   });
 }
 
-// Voz
+/* ==== Voz ==== */
 function speak(text){
   try{
     const u=new SpeechSynthesisUtterance(text);
@@ -117,23 +123,7 @@ function speak(text){
   }catch{}
 }
 
-// Envío sin CORS
-async function sendBeacon(url){
-  try{
-    await fetch(url, { mode:"no-cors", cache:"no-store" });
-    return true;
-  }catch{
-    return await new Promise(res=>{
-      const img = new Image();
-      img.onload = ()=>res(true);
-      img.onerror= ()=>res(false);
-      img.src = url + (url.includes('?')?'&':'?') + "_=" + Date.now();
-      setTimeout(()=>res(true), 1500);
-    });
-  }
-}
-
-// Antirréplica
+/* ==== Antirréplica ==== */
 const lastScanAt = new Map();
 function canAccept(id){
   const t=Date.now(), last=lastScanAt.get(id)||0;
@@ -142,7 +132,12 @@ function canAccept(id){
   return true;
 }
 
-// Extraer ID del QR (texto simple o JSON {id:"..."})
+/* ==== Estado local Entrada/Salida (igual que aforo) ==== */
+function localKey(id){ return `inside_${CUARTEL_NAME}_${id}`; }
+function getLocalInside(id){ return localStorage.getItem(localKey(id)) === "1"; }
+function setLocalInside(id, v){ localStorage.setItem(localKey(id), v ? "1" : "0"); }
+
+/* ==== Extraer ID del QR (texto simple o JSON {id:"..."}) ==== */
 function extractIdFromQr(text){
   try{
     const obj = JSON.parse(text);
@@ -151,71 +146,95 @@ function extractIdFromQr(text){
   return String(text||"").trim().toUpperCase();
 }
 
-// Flujo principal: consulta próxima acción + frase → habla → registra
+/* ==== Flujo principal (sin op=next) ==== */
 async function registrarPorId(idPlano, motivoSel){
   const id = (idPlano||"").trim().toUpperCase();
   const motivo = motivoSel || "Guardia";
   if (!id){ logEl.textContent="ID vacío"; return; }
 
   try{
-    logEl.textContent = "Consultando acción…";
+    logEl.textContent = "Buscando bombero…";
     fraseEl.textContent = "—";
-    const next = await jsonp(
-      API_BASE + "?op=next&id=" + encodeURIComponent(id) + "&cuartel=" + encodeURIComponent(CUARTEL_NAME)
-    );
-    if (!next || !next.ok){
-      logEl.innerHTML = '<span class="bad">Error al obtener acción</span>';
+
+    // 1) Traer bomberos (como aforo)
+    const bom = await jsonp(API_BASE + "?op=bomberos");
+    const b = bom[id];
+    if (!b){
+      logEl.innerHTML = `<span class="bad">❌ ID no encontrado en hoja Bomberos (${id})</span>`;
       return;
     }
 
-    // Frase personalizada
-    if (next.frase){
-      fraseEl.textContent = next.frase;
-      speak(next.frase);
-    } else {
-      fraseEl.textContent = "—";
+    // 2) Decidir acción con estado local
+    const wasInside = getLocalInside(id);
+    const accion = wasInside ? "Salida" : "Entrada";
+
+    // 3) Elegir frase (personalizada si existe)
+    let frase = "";
+    if (accion === "Entrada") frase = (b.bienvenida || "").toString().trim();
+    if (accion === "Salida")  frase = (b.despedida  || "").toString().trim();
+
+    if (!frase){
+      frase = (accion === "Entrada")
+        ? `Bienvenido ${b.nombre || ""}`.trim()
+        : `Buen descanso ${b.nombre || ""}`.trim();
     }
 
-    // Registrar con acción explícita (Entrada/Salida)
-    const url = API_BASE
-      + "?id="      + encodeURIComponent(id)
-      + "&nombre="  + encodeURIComponent(next.nombre || "")
-      + "&cargo="   + encodeURIComponent(next.cargo  || "")
-      + "&cuartel=" + encodeURIComponent(CUARTEL_NAME)
-      + "&accion="  + encodeURIComponent(next.accion)
-      + "&motivo="  + encodeURIComponent(motivo);
+    fraseEl.textContent = frase;
 
-    logEl.textContent = "Registrando " + next.accion + "…";
-    const ok = await sendBeacon(url);
-    logEl.innerHTML = ok
-      ? `<span class="ok">OK: ${next.accion} para ${next.nombre||id}</span>`
-      : `<span class="bad">Error al registrar</span>`;
+    // 4) Enviar registro (como aforo: fetch y leer texto)
+    logEl.textContent = "Registrando " + accion + "…";
+    const url = `${API_BASE}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(b.nombre||"")}&cargo=${encodeURIComponent(b.cargo||"")}&cuartel=${encodeURIComponent(CUARTEL_NAME)}&accion=${encodeURIComponent(accion)}&motivo=${encodeURIComponent(motivo)}`;
+    const res = await fetch(url, { cache: "no-store" });
+    const txt = await res.text();
+
+    if (txt.includes("OK")){
+      // hablar SOLO si fue OK
+      speak(frase);
+
+      // alternar estado local
+      setLocalInside(id, !wasInside);
+
+      logEl.innerHTML = `<span class="ok">✅ OK: ${accion} para ${b.nombre || id}</span>`;
+    } else {
+      logEl.innerHTML = `<span class="bad">⚠️ Error: ${txt}</span>`;
+    }
   }catch(e){
     console.error(e);
-    logEl.innerHTML = '<span class="bad">Error de red</span>';
+    logEl.innerHTML = '<span class="bad">❌ Error de conexión</span>';
   }
 }
 
-// Cámara (html5-qrcode)
+/* ==== Cámara (html5-qrcode) ==== */
 const html5QrCode = new Html5Qrcode("reader");
 let currentCameraId = null;
 
 async function startCamera(){
-  logEl.textContent="Solicitando cámara…";
-  const devices = await Html5Qrcode.getCameras();
-  if (!devices || !devices.length){
-    logEl.innerHTML='<span class="bad">No hay cámaras</span>'; return;
+  try{
+    logEl.textContent="Solicitando cámara…";
+    const devices = await Html5Qrcode.getCameras();
+    if (!devices || !devices.length){
+      logEl.innerHTML='<span class="bad">No hay cámaras</span>'; return;
+    }
+    currentCameraId = currentCameraId || (devices.find(d=>/back|rear|environment/i.test(d.label))?.id || devices[0].id);
+
+    await html5QrCode.start(
+      { deviceId: { exact: currentCameraId } },
+      { fps: 10, qrbox: { width: 300, height: 300 } },
+      onScanSuccess,
+      onScanError
+    );
+
+    logEl.textContent="Cámara activa. Escanea un QR.";
+  }catch(e){
+    console.error(e);
+    logEl.innerHTML = '<span class="bad">No se pudo iniciar la cámara</span>';
   }
-  currentCameraId = currentCameraId || (devices.find(d=>/back|rear|environment/i.test(d.label))?.id || devices[0].id);
-  await html5QrCode.start(
-    { deviceId: { exact: currentCameraId } },
-    { fps: 10, qrbox: { width: 300, height: 300 } },
-    onScanSuccess,
-    onScanError
-  );
-  logEl.textContent="Cámara activa. Escanea un QR.";
 }
-async function stopCamera(){ try{ await html5QrCode.stop(); logEl.textContent="Cámara detenida."; }catch{} }
+
+async function stopCamera(){
+  try{ await html5QrCode.stop(); logEl.textContent="Cámara detenida."; }catch{}
+}
+
 async function switchCamera(){
   try{
     const devices = await Html5Qrcode.getCameras();
@@ -231,34 +250,28 @@ async function switchCamera(){
 function onScanSuccess(decodedText){
   const id = extractIdFromQr(decodedText);
   if(!id){ logEl.innerHTML='<span class="bad">QR sin ID</span>'; return; }
-  if(!canAccept(id)) return;     // evita duplicados instantáneos
+  if(!canAccept(id)) return;
   registrarPorId(id, currentMotivo);
 }
-function onScanError(){ /* ignorar ruidos */ }
+function onScanError(){ /* ignorar */ }
 
-// Botones
+/* ==== Botones ==== */
 document.getElementById('startBtn').addEventListener('click', startCamera);
 document.getElementById('stopBtn').addEventListener('click', stopCamera);
 document.getElementById('switchBtn').addEventListener('click', switchCamera);
-/* ==== PASSWORD GATE (sin autoguardado) ==== */
-// Cambia la clave aquí (una por página si quieres)
-const PAGE_PASSWORD = "CBA01041954";
 
+/* ==== PASSWORD GATE (sin autoguardado) ==== */
+const PAGE_PASSWORD = "CBA01041954";
 function lockInit(){
   const ls = document.getElementById("lockScreen");
   if (!ls) return;
 
-  // SIEMPRE mostrar el lock al cargar / refrescar
   ls.style.display = "flex";
-
   const input = document.getElementById("lockPass");
   const btn = document.getElementById("lockBtn");
   const msg = document.getElementById("lockMsg");
 
-  function unlock(){
-    ls.style.display = "none";
-  }
-
+  function unlock(){ ls.style.display = "none"; }
   function tryLogin(){
     const p = (input.value || "").trim();
     if (p === PAGE_PASSWORD){
@@ -274,10 +287,7 @@ function lockInit(){
   btn.addEventListener("click", tryLogin);
   input.addEventListener("keydown", (ev)=>{ if (ev.key === "Enter") tryLogin(); });
 }
-
 document.addEventListener("DOMContentLoaded", lockInit);
-
-
 </script>
 </body>
 </html>
