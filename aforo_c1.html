@@ -431,7 +431,7 @@ const PAGE_PASSWORD = "CBA01041954";
 
 // Guarda acceso por 12 horas en este dispositivo/navegador
 const LOCK_KEY = "aforo_auth_until";
-const AUTH_HOURS = 12;
+const AUTH_HOURS = 0;
 
 function isAuthed(){
   const until = Number(localStorage.getItem(LOCK_KEY) || "0");
