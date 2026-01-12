@@ -20,6 +20,36 @@ button{background:#36d399;color:#0b1020;border:0;border-radius:10px;padding:10px
 </style>
 </head>
 <body>
+  <!-- ==== BLOQUEO POR CLAVE (frontend) ==== -->
+<div id="lockScreen" style="
+  position:fixed; inset:0; z-index:9999;
+  display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(120deg,#0b1020,#0e1430); color:#e9ecff;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+">
+  <div style="
+    width:min(420px,92vw);
+    background:#111735; border:1px solid #2a356a;
+    border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25);
+  ">
+    <h2 style="margin:0 0 6px">Acceso restringido</h2>
+    <p style="margin:0 0 14px; color:#9aa3c7">Ingresa la contraseña para ver esta página.</p>
+
+    <input id="lockPass" type="password" placeholder="Contraseña"
+      style="width:100%; padding:12px; border-radius:10px; border:1px solid #2a356a; background:#0f1633; color:#e9ecff;" />
+
+    <button id="lockBtn" style="
+      margin-top:12px; width:100%;
+      background:#36d399; color:#0b1020; border:none;
+      padding:10px 12px; border-radius:10px; font-weight:800; cursor:pointer
+    ">Entrar</button>
+
+    <div id="lockMsg" style="margin-top:10px; color:#ef4444; font-size:13px; display:none">
+      Contraseña incorrecta
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
   <h1>Lector QR – Cuartel General</h1>
   <p class="sub">Escanea un QR. Se pronuncia la frase personalizada y se registra Entrada/Salida en este cuartel.</p>
@@ -49,7 +79,7 @@ button{background:#36d399;color:#0b1020;border:0;border-radius:10px;padding:10px
 <script>
 /* ===== Configura esto ===== */
 const CUARTEL_NAME = "Cuartel General";
-const API_BASE = "https://script.google.com/macros/s/AKfycbxwXPZt7vKDBnpN1yhb5DYjzaeKNvEhrneTgsZQRBN0Mlv7z6CX_gUN0cHaJkUx2VMI/exec";  // ← REEMPLAZA por tu /exec
+const API_BASE = "https://script.google.com/macros/s/AKfycbyVI7DnS7YHSxYyPQ42dmnKQK9py90iCGnT0HMILFx-Q-_OzuTVXLrVY9CHKP-Jk0Gz/exec";  // ← REEMPLAZA por tu /exec
 const SCAN_COOLDOWN_MS = 5000;
 /* ========================== */
 
@@ -210,6 +240,56 @@ function onScanError(){ /* ignorar ruidos */ }
 document.getElementById('startBtn').addEventListener('click', startCamera);
 document.getElementById('stopBtn').addEventListener('click', stopCamera);
 document.getElementById('switchBtn').addEventListener('click', switchCamera);
+  /* ==== PASSWORD GATE (simple) ==== */
+// Cambia la clave aquí (una por página si quieres)
+const PAGE_PASSWORD = "CBA01041954";
+
+// Guarda acceso por 12 horas en este dispositivo/navegador
+const LOCK_KEY = "aforo_auth_until";
+const AUTH_HOURS = 12;
+
+function isAuthed(){
+  const until = Number(localStorage.getItem(LOCK_KEY) || "0");
+  return Date.now() < until;
+}
+
+function unlock(){
+  const until = Date.now() + AUTH_HOURS * 60 * 60 * 1000;
+  localStorage.setItem(LOCK_KEY, String(until));
+  const ls = document.getElementById("lockScreen");
+  if (ls) ls.style.display = "none";
+}
+
+function lockInit(){
+  const ls = document.getElementById("lockScreen");
+  if (!ls) return;
+
+  if (isAuthed()){
+    ls.style.display = "none";
+    return;
+  }
+
+  const input = document.getElementById("lockPass");
+  const btn = document.getElementById("lockBtn");
+  const msg = document.getElementById("lockMsg");
+
+  function tryLogin(){
+    const p = (input.value || "").trim();
+    if (p === PAGE_PASSWORD){
+      if (msg) msg.style.display = "none";
+      unlock();
+    } else {
+      if (msg) msg.style.display = "block";
+      input.focus();
+      input.select();
+    }
+  }
+
+  btn.addEventListener("click", tryLogin);
+  input.addEventListener("keydown", (ev)=>{ if (ev.key === "Enter") tryLogin(); });
+}
+lockInit();
+
 </script>
 </body>
 </html>
