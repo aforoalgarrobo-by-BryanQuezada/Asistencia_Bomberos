@@ -425,38 +425,24 @@
     setInterval(loadAforo, REFRESH_MS);
     setInterval(loadEstado, REFRESH_MS * 2);
   })();
-  /* ==== PASSWORD GATE (simple) ==== */
+ /* ==== PASSWORD GATE (sin autoguardado) ==== */
 // Cambia la clave aquí (una por página si quieres)
 const PAGE_PASSWORD = "CBA01041954";
-
-// Guarda acceso por 12 horas en este dispositivo/navegador
-const LOCK_KEY = "aforo_auth_until";
-const AUTH_HOURS = 0;
-
-function isAuthed(){
-  const until = Number(localStorage.getItem(LOCK_KEY) || "0");
-  return Date.now() < until;
-}
-
-function unlock(){
-  const until = Date.now() + AUTH_HOURS * 60 * 60 * 1000;
-  localStorage.setItem(LOCK_KEY, String(until));
-  const ls = document.getElementById("lockScreen");
-  if (ls) ls.style.display = "none";
-}
 
 function lockInit(){
   const ls = document.getElementById("lockScreen");
   if (!ls) return;
 
-  if (isAuthed()){
-    ls.style.display = "none";
-    return;
-  }
+  // SIEMPRE mostrar el lock al cargar / refrescar
+  ls.style.display = "flex";
 
   const input = document.getElementById("lockPass");
   const btn = document.getElementById("lockBtn");
   const msg = document.getElementById("lockMsg");
+
+  function unlock(){
+    ls.style.display = "none";
+  }
 
   function tryLogin(){
     const p = (input.value || "").trim();
@@ -473,7 +459,8 @@ function lockInit(){
   btn.addEventListener("click", tryLogin);
   input.addEventListener("keydown", (ev)=>{ if (ev.key === "Enter") tryLogin(); });
 }
-lockInit();
+
+document.addEventListener("DOMContentLoaded", lockInit);
 
 </script>
 </body>
