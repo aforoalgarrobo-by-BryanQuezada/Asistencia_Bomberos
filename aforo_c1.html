@@ -8,10 +8,10 @@
   :root{ --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399; }
   *{box-sizing:border-box}
   body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(120deg,#0b1020,#0e1430); color:var(--ink);}
-  .wrap{max-width:1200px; margin:40px auto; padding:0 16px;}
+  .wrap{max-width:2000px; margin:0px auto; padding:0 16px;}
   h1{font-size:clamp(22px,3.5vw,34px); margin:0 0 8px}
   .sub{color:var(--muted); margin:0 0 24px}
-  .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px;}
+  .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(390px,1fr)); gap:16px;}
   .card{background:var(--card); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25);}
   .head{display:flex; align-items:center; gap:12px; margin-bottom:6px}
   .logo-cu{width:54px; height:54px; object-fit:contain; border-radius:10px; background:#0f1633; border:1px solid #2a356a}
@@ -31,8 +31,10 @@
   select,input{padding:10px;border-radius:8px;border:1px solid #2a356a;background:#0f1633;color:#e9ecff;width:100%;}
   .footer{margin-top:10px; color:var(--muted); font-size:12px}
 
-  .unit-list{ border:1px solid #2a356a; background:#0f1633; border-radius:8px; padding:8px; max-height:180px; overflow:auto; }
-  .unit-item{ display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:6px; }
+  .unit-list{ border:1px solid #2a356a; background:#0f1633; border-radius:8px; padding:8px; max-height:120px; overflow:auto; }
+  .unit-item{ display:flex; align-items:center; gap:10px; width:100%; padding:4px 6px; border-radius:6px; }
+  .unit-item span{white-space:nowrap;}
+
   .unit-item:hover{ background:#121b3d; }
   .unit-item input{ transform:scale(1.05); }
 
@@ -100,16 +102,6 @@
 
   <div class="grid" id="grid"></div>
 
-  <!-- Presentes SOLO en este cuartel (editable) -->
-  <div class="card" id="presentesCard" style="margin-top:20px; display:none;">
-    <div class="label">Presentes en este cuartel</div>
-    <p class="sub" style="margin-top:0">Se actualiza automáticamente igual que la central.</p>
-    <div class="presentes-box">
-      <ul class="presentes-list" id="presentesList"></ul>
-    </div>
-    <div class="footer" id="presentesUpdated">Actualizado: —</div>
-  </div>
-
   <!-- Ingreso manual por ID -->
   <div class="card" style="margin-top:20px">
     <div class="label">Ingreso manual por ID</div>
@@ -135,6 +127,16 @@
   </div>
 
   <div class="footer" id="updated">Actualizado: —</div>
+  
+    <!-- Presentes SOLO en este cuartel (editable) -->
+  <div class="card" id="presentesCard" style="margin-top:20px; display:none;">
+    <div class="label">Presentes en este cuartel</div>
+    <p class="sub" style="margin-top:0">Se actualiza automáticamente igual que la central.</p>
+    <div class="presentes-box">
+      <ul class="presentes-list" id="presentesList"></ul>
+    </div>
+    <div class="footer" id="presentesUpdated">Actualizado: —</div>
+  </div>
 </div>
 
 <script>
@@ -288,16 +290,16 @@ function buildCards(){
         <div class="label" style="margin-top:10px">Unidades activas</div>
         <div id="box-un-${cu}" class="unit-list"></div>
 
+
+        <div id="chips-co-${cu}" class="chips"></div>
+
+       
+        <div id="chips-un-${cu}" class="chips"></div>
+
         <div class="row" style="margin-top:10px">
           <button class="btn-save" data-cu="${cu}">Guardar estado</button>
           <button class="btn-clear btn-alt" data-cu="${cu}">Limpiar</button>
         </div>
-
-        <div class="label">Conductores guardados</div>
-        <div id="chips-co-${cu}" class="chips"></div>
-
-        <div class="label" style="margin-top:8px">Unidades guardadas</div>
-        <div id="chips-un-${cu}" class="chips"></div>
 
         <div class="footer" id="saved-${cu}">—</div>
       `;
