@@ -8,10 +8,10 @@
   :root{ --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399; }
   *{box-sizing:border-box}
   body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(120deg,#0b1020,#0e1430); color:var(--ink);}
-  .wrap{max-width:1200px; margin:40px auto; padding:0 16px;}
+  .wrap{max-width:2000px; margin:0px auto; padding:0 16px;}
   h1{font-size:clamp(22px,3.5vw,34px); margin:0 0 8px}
   .sub{color:var(--muted); margin:0 0 24px}
-  .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px;}
+  .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(390px,1fr)); gap:16px;}
   .card{background:var(--card); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25);}
   .head{display:flex; align-items:center; gap:12px; margin-bottom:6px}
   .logo-cu{width:54px; height:54px; object-fit:contain; border-radius:10px; background:#0f1633; border:1px solid #2a356a}
@@ -31,8 +31,10 @@
   select,input{padding:10px;border-radius:8px;border:1px solid #2a356a;background:#0f1633;color:#e9ecff;width:100%;}
   .footer{margin-top:10px; color:var(--muted); font-size:12px}
 
-  .unit-list{ border:1px solid #2a356a; background:#0f1633; border-radius:8px; padding:8px; max-height:150px; overflow:auto; }
-  .unit-item{ display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:6px; }
+  .unit-list{ border:1px solid #2a356a; background:#0f1633; border-radius:8px; padding:8px; max-height:120px; overflow:auto; }
+  .unit-item{ display:flex; align-items:center; gap:10px; width:100%; padding:4px 6px; border-radius:6px; }
+  .unit-item span{white-space:nowrap;}
+
   .unit-item:hover{ background:#121b3d; }
   .unit-item input{ transform:scale(1.05); }
 
@@ -41,10 +43,21 @@
   .chip .dot{ width:8px; height:8px; background:var(--accent); border-radius:9999px; display:inline-block; margin-right:6px; vertical-align:middle; }
 
   .small{ font-size:12px; color:var(--muted); }
+
+  /* Presentes */
+  .presentes-box{ border:1px solid #2a356a; background:#0f1633; border-radius:12px; padding:10px; }
+  .presentes-list{ margin:0; padding:0; list-style:none; max-height:300px; overflow:auto; }
+  .pres-item{ display:flex; justify-content:space-between; gap:12px; padding:8px 10px; border-radius:10px; }
+  .pres-item:hover{ background:#121b3d; }
+  .pres-left{ display:flex; flex-direction:column; gap:2px; }
+  .pres-nombre{ font-weight:700; }
+  .pres-cargo{ font-size:12px; color:var(--muted); }
+  .pres-id{ font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; color:#cfe7ff; opacity:.9; }
 </style>
 </head>
 <body>
-  <!-- ==== BLOQUEO POR CLAVE (frontend) ==== -->
+
+<!-- ==== BLOQUEO POR CLAVE (frontend) ==== -->
 <div id="lockScreen" style="
   position:fixed; inset:0; z-index:9999;
   display:flex; align-items:center; justify-content:center;
@@ -74,389 +87,500 @@
   </div>
 </div>
 
-  <div class="wrap">
-    <h1>Aforo en tiempo real – Cuartel General</h1>
-    <p class="sub">Edita <b>solo</b> el estado del Cuartel General. Los demás cuarteles se muestran en modo lectura.</p>
+<div class="wrap">
+  <h1>Aforo en tiempo real – Cuartel General</h1>
+  <p class="sub">
+    Edita <b>solo</b> el estado del Cuartel General. Los demás cuarteles se muestran en modo lectura.
+    Además, este cuartel puede ver quién está dentro.
+  </p>
 
-    <div class="row">
-      <button id="refreshBtn">Actualizar ahora</button>
-      <span id="status" class="sub">Esperando datos…</span>
-      <span id="led" class="led"></span>
-    </div>
-
-    <div class="grid" id="grid"></div>
-
-    <!-- Ingreso manual por ID -->
-    <div class="card" style="margin-top:20px">
-      <div class="label">Ingreso manual por ID</div>
-      <p class="sub" style="margin-bottom:10px">Usa este formulario si el voluntario no tiene su QR.</p>
-      <div class="row" style="flex-wrap:wrap;gap:10px">
-        <input id="manual-id" placeholder="Ingresar RUT sin punto ni guion con minuscula ej: 12345678k" style="flex:1;min-width:180px" />
-        <select id="manual-motivo" style="flex:1;min-width:180px">
-          <option value="Guardia">Guardia</option>
-          <option value="Academia">Academia</option>
-          <option value="Curso">Curso</option>
-          <option value="Reunión">Reunión</option>
-          <option value="Visita">Visita</option>
-        </select>
-        <button id="manual-btn">Registrar ingreso/salida</button>
-      </div>
-      <div id="manual-status" class="sub" style="margin-top:6px;color:var(--muted)">—</div>
-      <div class="small">La primera vez se registra <b>Entrada</b>; la siguiente, <b>Salida</b> (se recuerda localmente por ID en este equipo).</div>
-    </div>
-
-    <div class="footer" id="updated">Actualizado: —</div>
+  <div class="row">
+    <button id="refreshBtn">Actualizar ahora</button>
+    <span id="status" class="sub">Esperando datos…</span>
+    <span id="led" class="led"></span>
   </div>
 
+  <div class="grid" id="grid"></div>
+
+  <!-- Ingreso manual por ID -->
+  <div class="card" style="margin-top:20px">
+    <div class="label">Ingreso manual por ID</div>
+    <p class="sub" style="margin-bottom:10px">
+      Usa este formulario si el voluntario no tiene su QR. Al registrar OK se lee:
+      “Bienvenido/Hasta pronto + cargo + nombre”.
+    </p>
+
+    <div class="row" style="flex-wrap:wrap;gap:10px">
+      <input id="manual-id" placeholder="Ingresar RUT sin punto ni guion (ej: 12345678K)" style="flex:1;min-width:180px" />
+      <select id="manual-motivo" style="flex:1;min-width:180px">
+        <option value="Guardia">Guardia</option>
+        <option value="Academia">Academia</option>
+        <option value="Curso">Curso</option>
+        <option value="Reunión">Reunión</option>
+        <option value="Visita">Visita</option>
+      </select>
+      <button id="manual-btn">Registrar ingreso/salida</button>
+    </div>
+
+    <div id="manual-status" class="sub" style="margin-top:6px;color:var(--muted)">—</div>
+    <div class="small">La primera vez se registra <b>Entrada</b>; la siguiente, <b>Salida</b> (se recuerda localmente por ID en este equipo).</div>
+  </div>
+
+  <div class="footer" id="updated">Actualizado: —</div>
+  
+    <!-- Presentes SOLO en este cuartel (editable) -->
+  <div class="card" id="presentesCard" style="margin-top:20px; display:none;">
+    <div class="label">Presentes en este cuartel</div>
+    <p class="sub" style="margin-top:0">Se actualiza automáticamente igual que la central.</p>
+    <div class="presentes-box">
+      <ul class="presentes-list" id="presentesList"></ul>
+    </div>
+    <div class="footer" id="presentesUpdated">Actualizado: —</div>
+  </div>
+</div>
+
 <script>
-  /* ==== Config ==== */
-  const CUARTEL_NAME = "Cuartel General";                         // ← este archivo es para el Cuartel 1
-  const API_BASE = "https://script.google.com/macros/s/AKfycbyVI7DnS7YHSxYyPQ42dmnKQK9py90iCGnT0HMILFx-Q-_OzuTVXLrVY9CHKP-Jk0Gz/exec";   // ← reemplaza por tu /exec
-  const REFRESH_MS = 5000;
+/* ==== Config ==== */
+const CUARTEL_NAME = "Cuartel General"; // ← CAMBIA ESTO en cada cuartel
+const API_BASE = "https://script.google.com/macros/s/AKfycbyVI7DnS7YHSxYyPQ42dmnKQK9py90iCGnT0HMILFx-Q-_OzuTVXLrVY9CHKP-Jk0Gz/exec";
+const REFRESH_MS = 20000;
 
-  // Logos por cuartel (sube img/c1.png, c2.png, c3.png, c4.png)
-  const LOGOS = {
-    "Cuartel 1": "img/c1.png",
-    "Cuartel 2": "img/c2.png",
-    "Cuartel 3": "img/c3.png",
-    "Cuartel General": "img/cg.png",
-  };
+const LOGOS = {
+  "Cuartel 1": "img/c1.png",
+  "Cuartel 2": "img/c2.png",
+  "Cuartel 3": "img/c3.png",
+  "Cuartel General": "img/cg.png",
+};
 
-  /* ==== Utils ==== */
-  function jsonp(url){
-    return new Promise((resolve, reject)=>{
-      const cb = "cb_" + Math.random().toString(36).slice(2);
-      window[cb] = (data)=>{ resolve(data); try{ delete window[cb]; }catch{} };
-      const s = document.createElement('script');
-      s.src = url + (url.includes('?')?'&':'?') + 'callback=' + cb + '&_=' + Date.now();
-      s.onerror = ()=> reject(new Error('JSONP error'));
-      document.body.appendChild(s);
-      setTimeout(()=>{ try{s.remove()}catch{} }, 12000);
-    });
-  }
-  function renderChips(container, list){
-    container.innerHTML = "";
-    (list||[]).forEach(txt=>{
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      chip.innerHTML = '<span class="dot"></span>' + txt;
-      container.appendChild(chip);
-    });
-  }
-  function renderCheckboxList(container, allUnits, selected){
-    container.innerHTML = "";
-    const setSel = new Set(selected||[]);
-    (allUnits||[]).forEach(u=>{
-      const row = document.createElement('label');
-      row.className = 'unit-item';
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.value = u;
-      cb.checked = setSel.has(u);
-      const txt = document.createElement('span');
-      txt.textContent = u;
-      row.appendChild(cb); row.appendChild(txt);
-      container.appendChild(row);
-    });
-  }
-  function getChecked(container){
-    return Array.from(container.querySelectorAll('input[type=checkbox]:checked')).map(cb=>cb.value);
-  }
-  function fillSelect(sel, arr, selected){
-    sel.innerHTML = "";
-    const opt0 = document.createElement('option');
-    opt0.value = ""; opt0.textContent = "— Seleccionar —";
-    sel.appendChild(opt0);
-    (arr||[]).forEach(v=>{
-      const o = document.createElement('option');
-      o.value = v; o.textContent = v;
-      if (selected && selected === v) o.selected = true;
-      sel.appendChild(o);
-    });
-  }
+/* ==== Utils ==== */
+function jsonp(url){
+  return new Promise((resolve, reject)=>{
+    const cb = "cb_" + Math.random().toString(36).slice(2);
+    window[cb] = (data)=>{ resolve(data); try{ delete window[cb]; }catch{} };
+    const s = document.createElement('script');
+    s.src = url + (url.includes('?')?'&':'?') + 'callback=' + cb + '&_=' + Date.now();
+    s.onerror = ()=> reject(new Error('JSONP error'));
+    document.body.appendChild(s);
+    setTimeout(()=>{ try{s.remove()}catch{} }, 12000);
+  });
+}
 
-  /* ==== UI ==== */
-  const cuarteles = ["Cuartel 1","Cuartel 2","Cuartel 3","Cuartel General"];
-  const grid = document.getElementById('grid');
-  const el = {
-    status: document.getElementById('status'),
-    led: document.getElementById('led'),
-    btn: document.getElementById('refreshBtn'),
-    updated: document.getElementById('updated'),
-  };
+function speak(text){
+  try{
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "es-CL";
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  }catch{}
+}
 
-  function buildCards(){
-    grid.innerHTML = "";
-    cuarteles.forEach(cu=>{
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.id = 'card-' + cu.replace(" ","-");
+function fraseDefault_(accion, cargo, nombre){
+  const c = (cargo || "").toString().trim();
+  const n = (nombre || "").toString().trim();
+  return (accion === "Entrada")
+    ? `Bienvenido ${c} ${n}`.trim()
+    : `Hasta pronto ${c} ${n}`.trim();
+}
 
-      const editable = (cu === CUARTEL_NAME);
-      const tag = editable ? '<span class="editable-tag">Editable</span>' : '<span class="readonly-tag">Solo lectura</span>';
-      const logo = LOGOS[cu] || "img/logocuerpo.png";
+function renderChips(container, list){
+  container.innerHTML = "";
+  (list||[]).filter(Boolean).forEach(txt=>{
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = '<span class="dot"></span>' + txt;
+    container.appendChild(chip);
+  });
+}
 
-      card.innerHTML = `
-        <div class="head">
-          <img class="logo-cu" src="${logo}" alt="${cu}">
-          <div class="title">
-            <div class="label">${cu}</div>
-            ${tag}
+function renderCheckboxList(container, allItems, selected){
+  container.innerHTML = "";
+  const setSel = new Set((selected||[]).map(s=>String(s).trim()).filter(Boolean));
+  (allItems||[]).forEach(u=>{
+    const row = document.createElement('label');
+    row.className = 'unit-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = u;
+    cb.checked = setSel.has(u);
+    const txt = document.createElement('span');
+    txt.textContent = u;
+    row.appendChild(cb); row.appendChild(txt);
+    container.appendChild(row);
+  });
+}
+
+function getChecked(container){
+  return Array.from(container.querySelectorAll('input[type=checkbox]:checked'))
+    .map(cb=>cb.value)
+    .filter(Boolean);
+}
+
+function fillSelect(sel, arr, selected){
+  sel.innerHTML = "";
+  const opt0 = document.createElement('option');
+  opt0.value = ""; opt0.textContent = "— Seleccionar —";
+  sel.appendChild(opt0);
+  (arr||[]).forEach(v=>{
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    if (selected && selected === v) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function csvToList(csv){
+  return (csv || "")
+    .toString()
+    .split(",")
+    .map(s=>s.trim())
+    .filter(Boolean);
+}
+
+function listToCsv(list){
+  return (list||[])
+    .map(s=>String(s).trim())
+    .filter(Boolean)
+    .join(",");
+}
+
+/* ==== UI ==== */
+const cuarteles = ["Cuartel 1","Cuartel 2","Cuartel 3","Cuartel General"];
+const grid = document.getElementById('grid');
+const el = {
+  status: document.getElementById('status'),
+  led: document.getElementById('led'),
+  updated: document.getElementById('updated'),
+};
+
+function buildCards(){
+  grid.innerHTML = "";
+  cuarteles.forEach(cu=>{
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const editable = (cu === CUARTEL_NAME);
+    const tag = editable ? '<span class="editable-tag">Editable</span>' : '<span class="readonly-tag">Solo lectura</span>';
+    const logo = LOGOS[cu] || "img/logocuerpo.png";
+
+    card.innerHTML = `
+      <div class="head">
+        <img class="logo-cu" src="${logo}" alt="${cu}">
+        <div class="title">
+          <div class="label">${cu}</div>
+          ${tag}
+        </div>
+      </div>
+      <div class="value" id="cnt-${cu}">0</div>
+      <div class="name">Voluntarios dentro</div>
+    `;
+
+    if (editable){
+      const panel = document.createElement('div');
+      panel.innerHTML = `
+        <div class="row" style="margin-top:8px">
+          <div style="flex:1; min-width:180px">
+            <div class="label">Cuartelero</div>
+            <select id="sel-cu-${cu}"></select>
           </div>
         </div>
-        <div class="value" id="cnt-${cu}">0</div>
-        <div class="name">Voluntarios dentro</div>
+
+        <div class="label" style="margin-top:4px">Conductores (puedes seleccionar varios)</div>
+        <div id="box-co-${cu}" class="unit-list"></div>
+
+        <div class="label" style="margin-top:10px">Unidades activas</div>
+        <div id="box-un-${cu}" class="unit-list"></div>
+
+
+        <div id="chips-co-${cu}" class="chips"></div>
+
+       
+        <div id="chips-un-${cu}" class="chips"></div>
+
+        <div class="row" style="margin-top:10px">
+          <button class="btn-save" data-cu="${cu}">Guardar estado</button>
+          <button class="btn-clear btn-alt" data-cu="${cu}">Limpiar</button>
+        </div>
+
+        <div class="footer" id="saved-${cu}">—</div>
       `;
+      card.appendChild(panel);
+    } else {
+      const view = document.createElement('div');
+      view.innerHTML = `
+        <div class="label" style="margin-top:6px">Cuartelero: <b id="view-cu-${cu}">—</b></div>
+        <div class="label" style="margin-top:2px">Conductores:</div>
+        <div id="chips-co-${cu}" class="chips"></div>
 
-      if (editable){
-        const panel = document.createElement('div');
-        panel.innerHTML = `
-          <div class="row" style="margin-top:8px">
-            <div style="flex:1; min-width:180px">
-              <div class="label">Cuartelero</div>
-              <select id="sel-cu-${cu}"></select>
-            </div>
-            <div style="flex:1; min-width:180px">
-              <div class="label">Conductor</div>
-              <select id="sel-co-${cu}"></select>
-            </div>
-          </div>
+        <div class="label" style="margin-top:8px">Unidades activas</div>
+        <div id="chips-un-${cu}" class="chips"></div>
 
-          <div class="label" style="margin-top:4px">Unidades activas</div>
-          <div id="box-un-${cu}" class="unit-list"></div>
-
-          <div class="row" style="margin-top:10px">
-            <button class="btn-save" data-cu="${cu}">Guardar estado</button>
-            <button class="btn-clear btn-alt" data-cu="${cu}">Limpiar</button>
-          </div>
-
-          <div class="label">Unidades guardadas</div>
-          <div id="chips-${cu}" class="chips"></div>
-
-          <div class="footer" id="saved-${cu}">—</div>
-        `;
-        card.appendChild(panel);
-      } else {
-        const view = document.createElement('div');
-        view.innerHTML = `
-          <div class="label" style="margin-top:6px">Cuartelero: <b id="view-cu-${cu}">—</b></div>
-          <div class="label" style="margin-top:2px">Conductor: <b id="view-co-${cu}">—</b></div>
-          <div class="label" style="margin-top:8px">Unidades activas</div>
-          <div id="chips-${cu}" class="chips"></div>
-          <div class="footer" id="saved-${cu}">—</div>
-        `;
-        card.appendChild(view);
-      }
-
-      grid.appendChild(card);
-    });
-  }
-
-  /* ==== Datos ==== */
-  let ALL_UNITS = [];
-  let CUARTELEROS = [];
-  let CONDUCTORES = [];
-
-  async function loadCatalogos(){
-    const bom = await jsonp(API_BASE + "?op=bomberos");
-    CUARTELEROS = []; CONDUCTORES = [];
-    Object.values(bom).forEach(b=>{
-      if (b.cuartelero) CUARTELEROS.push(b.nombre);
-      if (b.conductor)  CONDUCTORES.push(b.nombre);
-    });
-    CUARTELEROS.sort((a,b)=>a.localeCompare(b));
-    CONDUCTORES.sort((a,b)=>a.localeCompare(b));
-
-    const uni = await jsonp(API_BASE + "?op=unidades");
-    ALL_UNITS = uni.unidades || [];
-  }
-
-  async function loadAforo(){
-    try{
-      el.status.textContent = "Actualizando…";
-      el.led.classList.remove('bad'); el.led.classList.add('ok');
-      const data = await jsonp(API_BASE + "?op=aforo");
-
-      const counts = data.counts || {};
-      cuarteles.forEach(cu=>{
-        const node = document.getElementById("cnt-" + cu);
-        if (node) node.textContent = counts[cu] || 0;
-      });
-
-      el.updated.textContent = "Actualizado: " + (data.updated || new Date().toLocaleString("es-CL"));
-      el.status.textContent = "OK";
-    } catch(e){
-      console.error(e);
-      el.status.textContent = "Error";
-      el.led.classList.remove('ok'); el.led.classList.add('bad');
+        <div class="footer" id="saved-${cu}">—</div>
+      `;
+      card.appendChild(view);
     }
-  }
 
-  async function loadEstado(){
-    const est = await jsonp(API_BASE + "?op=estado");
-    for (const cu of cuarteles){
-      const e = est[cu] || {cuartelero:"", conductor:"", unidades:[], updated:""};
-      if (cu === CUARTEL_NAME){
-        fillSelect(document.getElementById(`sel-cu-${cu}`), CUARTELEROS, e.cuartelero);
-        fillSelect(document.getElementById(`sel-co-${cu}`), CONDUCTORES, e.conductor);
-        renderCheckboxList(document.getElementById(`box-un-${cu}`), ALL_UNITS, e.unidades);
-        renderChips(document.getElementById(`chips-${cu}`), e.unidades);
-      } else {
-        const vcu = document.getElementById(`view-cu-${cu}`);
-        const vco = document.getElementById(`view-co-${cu}`);
-        if (vcu) vcu.textContent = e.cuartelero || "—";
-        if (vco) vco.textContent = e.conductor  || "—";
-        renderChips(document.getElementById(`chips-${cu}`), e.unidades);
-      }
-      const saved = document.getElementById(`saved-${cu}`);
-      if (saved) saved.textContent = e.updated ? ("Última actualización: " + e.updated) : "—";
-    }
-  }
-
-  async function guardarEstado(cu){
-    if (cu !== CUARTEL_NAME) return;
-    const selCu = document.getElementById(`sel-cu-${cu}`);
-    const selCo = document.getElementById(`sel-co-${cu}`);
-    const boxUn = document.getElementById(`box-un-${cu}`);
-    const lbl   = document.getElementById(`saved-${cu}`);
-    const chips = document.getElementById(`chips-${cu}`);
-
-    const cuartelero = selCu.value || "";
-    const conductor  = selCo.value || "";
-    const unidades   = getChecked(boxUn);
-    const csv        = unidades.join(",");
-
-    lbl.textContent = "Guardando…";
-    try{
-      const res = await jsonp(API_BASE + "?op=estado_set"
-        + "&cuartel="    + encodeURIComponent(cu)
-        + "&cuartelero=" + encodeURIComponent(cuartelero)
-        + "&conductor="  + encodeURIComponent(conductor)
-        + "&unidades="   + encodeURIComponent(csv)
-      );
-      if (res && res.ok){
-        lbl.textContent = "Guardado: " + (res.updated || "");
-        renderChips(chips, unidades);
-      } else {
-        lbl.textContent = "Error al guardar";
-      }
-    }catch(e){
-      console.error(e);
-      lbl.textContent = "Error al guardar";
-    }
-  }
-  function limpiarSeleccion(cu){
-    if (cu !== CUARTEL_NAME) return;
-    const boxUn = document.getElementById(`box-un-${cu}`);
-    const chips = document.getElementById(`chips-${cu}`);
-    const lbl   = document.getElementById(`saved-${cu}`);
-    boxUn.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
-    renderChips(chips, []);
-    lbl.textContent = "—";
-  }
-  function hookButtons(){
-    grid.addEventListener('click', (ev)=>{
-      const bSave = ev.target.closest('.btn-save');
-      const bClr  = ev.target.closest('.btn-clear');
-      if (bSave)  guardarEstado(bSave.dataset.cu);
-      if (bClr)   limpiarSeleccion(bClr.dataset.cu);
-    });
-  }
-
-  document.getElementById('refreshBtn').addEventListener('click', ()=>{ loadAforo(); loadEstado(); });
-
-  /* ==== Ingreso manual por ID (Entrada/Salida sin toggle) ==== */
-  const inputID = document.getElementById("manual-id");
-  const inputMotivo = document.getElementById("manual-motivo");
-  const btnManual = document.getElementById("manual-btn");
-  const lblManual = document.getElementById("manual-status");
-
-  // Estado local (por cuartel) para decidir entrada/salida si no hay info del servidor
-  function localKey(id){ return `inside_${CUARTEL_NAME}_${id}`; }
-  function getLocalInside(id){ return localStorage.getItem(localKey(id)) === "1"; }
-  function setLocalInside(id, v){ localStorage.setItem(localKey(id), v ? "1" : "0"); }
-
-  btnManual.addEventListener("click", async ()=>{
-    const id = (inputID.value || "").trim().toUpperCase();
-    const motivo = inputMotivo.value || "Sin Motivo";
-    if (!id){ lblManual.textContent = "⚠️ Ingresa un ID válido"; return; }
-
-    lblManual.textContent = "Buscando…";
-    try{
-      // 1) Buscar datos del bombero
-      const bom = await jsonp(API_BASE + "?op=bomberos");
-      const b = bom[id];
-      if (!b){ lblManual.textContent = "❌ ID no encontrado en hoja Bomberos"; return; }
-
-      // 2) Decidir acción según estado local (Entrada por defecto la primera vez)
-      const wasInside = getLocalInside(id);
-      const accion = wasInside ? "Salida" : "Entrada";
-
-      // 3) Enviar registro
-      lblManual.textContent = "Registrando " + accion + "…";
-      const url = `${API_BASE}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(b.nombre)}&cargo=${encodeURIComponent(b.cargo)}&cuartel=${encodeURIComponent(CUARTEL_NAME)}&accion=${encodeURIComponent(accion)}&motivo=${encodeURIComponent(motivo)}`;
-      const res = await fetch(url, { cache: "no-store" });
-      const txt = await res.text();
-
-      if (txt.includes("OK")){
-        // Alternar estado local
-        setLocalInside(id, !wasInside);
-        lblManual.textContent = `✅ ${accion} registrada`;
-        inputID.value = "";
-        // refrescar conteos
-        loadAforo();
-        setTimeout(()=>{ lblManual.textContent="—"; }, 4000);
-      }else{
-        lblManual.textContent = "⚠️ Error: " + txt;
-      }
-    }catch(err){
-      console.error(err);
-      lblManual.textContent = "❌ Error de conexión";
-    }
+    grid.appendChild(card);
   });
 
-  /* ==== Init ==== */
-  (async function init(){
-    buildCards();
-    hookButtons();
-    await loadCatalogos();
-    await loadAforo();
-    await loadEstado();
-    setInterval(loadAforo, REFRESH_MS);
-    setInterval(loadEstado, REFRESH_MS * 2);
-  })();
-  /* ==== PASSWORD GATE (simple) ==== */
-// Cambia la clave aquí (una por página si quieres)
+  // Mostrar tarjeta “Presentes” solo para el cuartel (este archivo)
+  document.getElementById("presentesCard").style.display = "block";
+}
+
+/* ==== Datos ==== */
+let ALL_UNITS = [];
+let CUARTELEROS = [];
+let CONDUCTORES = [];
+
+async function loadCatalogos(){
+  const bom = await jsonp(API_BASE + "?op=bomberos");
+
+  CUARTELEROS = [];
+  CONDUCTORES = [];
+  Object.values(bom).forEach(b=>{
+    if (b.cuartelero) CUARTELEROS.push(b.nombre);
+    if (b.conductor)  CONDUCTORES.push(b.nombre);
+  });
+  CUARTELEROS.sort((a,b)=>a.localeCompare(b));
+  CONDUCTORES.sort((a,b)=>a.localeCompare(b));
+
+  const uni = await jsonp(API_BASE + "?op=unidades");
+  ALL_UNITS = uni.unidades || [];
+}
+
+async function loadAforo(){
+  try{
+    el.status.textContent = "Actualizando…";
+    el.led.classList.remove('bad'); el.led.classList.add('ok');
+    const data = await jsonp(API_BASE + "?op=aforo");
+    const counts = data.counts || {};
+    cuarteles.forEach(cu=>{
+      const node = document.getElementById("cnt-" + cu);
+      if (node) node.textContent = counts[cu] || 0;
+    });
+    el.updated.textContent = "Actualizado: " + (data.updated || new Date().toLocaleString("es-CL"));
+    el.status.textContent = "OK";
+  } catch(e){
+    console.error(e);
+    el.status.textContent = "Error";
+    el.led.classList.remove('ok'); el.led.classList.add('bad');
+  }
+}
+
+async function loadEstado(){
+  const est = await jsonp(API_BASE + "?op=estado");
+  for (const cu of cuarteles){
+    const e = est[cu] || {cuartelero:"", conductor:"", unidades:[], updated:""};
+
+    const conductoresList = csvToList(e.conductor);
+    const unidadesList = (e.unidades || []).map(s=>String(s).trim()).filter(Boolean);
+
+    if (cu === CUARTEL_NAME){
+      // Editable
+      fillSelect(document.getElementById(`sel-cu-${cu}`), CUARTELEROS, e.cuartelero || "");
+
+      renderCheckboxList(document.getElementById(`box-co-${cu}`), CONDUCTORES, conductoresList);
+      renderCheckboxList(document.getElementById(`box-un-${cu}`), ALL_UNITS, unidadesList);
+
+      renderChips(document.getElementById(`chips-co-${cu}`), conductoresList);
+      renderChips(document.getElementById(`chips-un-${cu}`), unidadesList);
+    } else {
+      // Lectura
+      const vcu = document.getElementById(`view-cu-${cu}`);
+      if (vcu) vcu.textContent = e.cuartelero || "—";
+
+      renderChips(document.getElementById(`chips-co-${cu}`), conductoresList);
+      renderChips(document.getElementById(`chips-un-${cu}`), unidadesList);
+    }
+
+    const saved = document.getElementById(`saved-${cu}`);
+    if (saved) saved.textContent = e.updated ? ("Última actualización: " + e.updated) : "—";
+  }
+}
+
+async function loadPresentesCuartelEditable(){
+  try{
+    const data = await jsonp(API_BASE + "?op=presentes");
+    const list = (data && data.cuarteles && data.cuarteles[CUARTEL_NAME]) ? data.cuarteles[CUARTEL_NAME] : [];
+
+    const ul = document.getElementById("presentesList");
+    const up = document.getElementById("presentesUpdated");
+
+    ul.innerHTML = "";
+    if (!list.length){
+      const li = document.createElement("li");
+      li.className = "pres-item";
+      li.innerHTML = `<div class="pres-left"><div class="pres-nombre">—</div><div class="pres-cargo">Sin presentes</div></div>`;
+      ul.appendChild(li);
+    } else {
+      list.forEach(p=>{
+        const nombre = (p.nombre || "").trim() || p.id;
+        const cargo  = (p.cargo  || "").trim() || "—";
+        const id     = (p.id     || "").trim() || "";
+        const li = document.createElement("li");
+        li.className = "pres-item";
+        li.innerHTML = `
+          <div class="pres-left">
+            <div class="pres-nombre">${nombre}</div>
+            <div class="pres-cargo">${cargo}</div>
+          </div>
+          <div class="pres-id">${id}</div>
+        `;
+        ul.appendChild(li);
+      });
+    }
+    up.textContent = "Actualizado: " + (data.updated || new Date().toLocaleString("es-CL"));
+  } catch(e){
+    console.error(e);
+    document.getElementById("presentesUpdated").textContent = "Actualizado: (error)";
+  }
+}
+
+async function guardarEstado(cu){
+  if (cu !== CUARTEL_NAME) return;
+
+  const selCu = document.getElementById(`sel-cu-${cu}`);
+  const boxCo = document.getElementById(`box-co-${cu}`);
+  const boxUn = document.getElementById(`box-un-${cu}`);
+
+  const lblSaved = document.getElementById(`saved-${cu}`);
+  const chipsCo  = document.getElementById(`chips-co-${cu}`);
+  const chipsUn  = document.getElementById(`chips-un-${cu}`);
+
+  const cuartelero = selCu.value || "";
+  const conductores = getChecked(boxCo);
+  const unidades = getChecked(boxUn);
+
+  const csvConductores = listToCsv(conductores);
+  const csvUnidades = listToCsv(unidades);
+
+  lblSaved.textContent = "Guardando…";
+  try{
+    const res = await jsonp(API_BASE + "?op=estado_set"
+      + "&cuartel="    + encodeURIComponent(cu)
+      + "&cuartelero=" + encodeURIComponent(cuartelero)
+      + "&conductor="  + encodeURIComponent(csvConductores)
+      + "&unidades="   + encodeURIComponent(csvUnidades)
+    );
+
+    if (res && res.ok){
+      lblSaved.textContent = "Guardado: " + (res.updated || "");
+      renderChips(chipsCo, conductores);
+      renderChips(chipsUn, unidades);
+    } else {
+      lblSaved.textContent = "Error al guardar";
+    }
+  }catch(e){
+    console.error(e);
+    lblSaved.textContent = "Error al guardar";
+  }
+}
+
+function limpiarSeleccion(cu){
+  if (cu !== CUARTEL_NAME) return;
+
+  const boxCo = document.getElementById(`box-co-${cu}`);
+  const boxUn = document.getElementById(`box-un-${cu}`);
+  const chipsCo  = document.getElementById(`chips-co-${cu}`);
+  const chipsUn  = document.getElementById(`chips-un-${cu}`);
+  const lblSaved = document.getElementById(`saved-${cu}`);
+
+  boxCo.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+  boxUn.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+
+  renderChips(chipsCo, []);
+  renderChips(chipsUn, []);
+  lblSaved.textContent = "—";
+}
+
+function hookButtons(){
+  grid.addEventListener('click', (ev)=>{
+    const bSave = ev.target.closest('.btn-save');
+    const bClr  = ev.target.closest('.btn-clear');
+    if (bSave)  guardarEstado(bSave.dataset.cu);
+    if (bClr)   limpiarSeleccion(bClr.dataset.cu);
+  });
+}
+
+document.getElementById('refreshBtn').addEventListener('click', ()=>{
+  loadAforo(); loadEstado(); loadPresentesCuartelEditable();
+});
+
+/* ==== Ingreso manual por ID + VOZ ==== */
+const inputID = document.getElementById("manual-id");
+const inputMotivo = document.getElementById("manual-motivo");
+const btnManual = document.getElementById("manual-btn");
+const lblManual = document.getElementById("manual-status");
+
+function localKey(id){ return `inside_${CUARTEL_NAME}_${id}`; }
+function getLocalInside(id){ return localStorage.getItem(localKey(id)) === "1"; }
+function setLocalInside(id, v){ localStorage.setItem(localKey(id), v ? "1" : "0"); }
+
+btnManual.addEventListener("click", async ()=>{
+  const id = (inputID.value || "").trim().toUpperCase();
+  const motivo = inputMotivo.value || "Sin Motivo";
+  if (!id){ lblManual.textContent = "⚠️ Ingresa un ID válido"; return; }
+
+  lblManual.textContent = "Buscando…";
+  try{
+    const bom = await jsonp(API_BASE + "?op=bomberos");
+    const b = bom[id];
+    if (!b){ lblManual.textContent = "❌ ID no encontrado en hoja Bomberos"; return; }
+
+    const wasInside = getLocalInside(id);
+    const accion = wasInside ? "Salida" : "Entrada";
+
+    lblManual.textContent = "Registrando " + accion + "…";
+    const url = `${API_BASE}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(b.nombre||"")}&cargo=${encodeURIComponent(b.cargo||"")}&cuartel=${encodeURIComponent(CUARTEL_NAME)}&accion=${encodeURIComponent(accion)}&motivo=${encodeURIComponent(motivo)}`;
+    const res = await fetch(url, { cache: "no-store" });
+    const txt = await res.text();
+
+    if (txt.includes("OK")){
+      setLocalInside(id, !wasInside);
+
+      // VOZ (solo si OK)
+      speak(fraseDefault_(accion, b.cargo, b.nombre));
+
+      lblManual.textContent = `✅ ${accion} registrada`;
+      inputID.value = "";
+
+      loadAforo();
+      loadPresentesCuartelEditable();
+
+      setTimeout(()=>{ lblManual.textContent="—"; }, 4000);
+    } else {
+      lblManual.textContent = "⚠️ Error: " + txt;
+    }
+  } catch(err){
+    console.error(err);
+    lblManual.textContent = "❌ Error de conexión";
+  }
+});
+
+/* ==== Init ==== */
+(async function init(){
+  buildCards();
+  hookButtons();
+  await loadCatalogos();
+  await loadAforo();
+  await loadEstado();
+  await loadPresentesCuartelEditable();
+  setInterval(loadAforo, REFRESH_MS);
+  setInterval(loadEstado, REFRESH_MS * 2);
+  setInterval(loadPresentesCuartelEditable, REFRESH_MS);
+})();
+
+/* ==== PASSWORD GATE ==== */
 const PAGE_PASSWORD = "CBA01041954";
-
-// Guarda acceso por 12 horas en este dispositivo/navegador
-const LOCK_KEY = "aforo_auth_until";
-const AUTH_HOURS = 12;
-
-function isAuthed(){
-  const until = Number(localStorage.getItem(LOCK_KEY) || "0");
-  return Date.now() < until;
-}
-
-function unlock(){
-  const until = Date.now() + AUTH_HOURS * 60 * 60 * 1000;
-  localStorage.setItem(LOCK_KEY, String(until));
-  const ls = document.getElementById("lockScreen");
-  if (ls) ls.style.display = "none";
-}
-
 function lockInit(){
   const ls = document.getElementById("lockScreen");
   if (!ls) return;
 
-  if (isAuthed()){
-    ls.style.display = "none";
-    return;
-  }
-
+  ls.style.display = "flex";
   const input = document.getElementById("lockPass");
   const btn = document.getElementById("lockBtn");
   const msg = document.getElementById("lockMsg");
+
+  function unlock(){ ls.style.display = "none"; }
 
   function tryLogin(){
     const p = (input.value || "").trim();
@@ -473,8 +597,7 @@ function lockInit(){
   btn.addEventListener("click", tryLogin);
   input.addEventListener("keydown", (ev)=>{ if (ev.key === "Enter") tryLogin(); });
 }
-lockInit();
-
+document.addEventListener("DOMContentLoaded", lockInit);
 </script>
 </body>
 </html>
